@@ -1,0 +1,1490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowAI — AI Workflow Automation</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#050A0F;
+    --bg2:#0B1219;
+    --bg3:#101921;
+    --bg4:#162030;
+    --surface:#1A2535;
+    --surface2:#1E2D40;
+    --border:#1E3048;
+    --border2:#243850;
+    --accent:#00D4FF;
+    --accent2:#00FF88;
+    --accent3:#FF6B35;
+    --accent4:#A855F7;
+    --warn:#FFB800;
+    --danger:#FF4B4B;
+    --text:#E8F4FF;
+    --text2:#8AADCC;
+    --text3:#4A7090;
+    --grid-line:rgba(0,212,255,0.06);
+    --glow:0 0 20px rgba(0,212,255,0.15);
+    --glow2:0 0 30px rgba(0,255,136,0.12);
+  }
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    line-height:1.6;
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+  /* Grid background */
+  body::before{
+    content:'';
+    position:fixed;
+    inset:0;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size:40px 40px;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  /* ─── LAYOUT ─── */
+  .app{position:relative;z-index:1;display:flex;flex-direction:column;min-height:100vh}
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:0 24px;height:56px;
+    background:rgba(5,10,15,0.9);
+    border-bottom:1px solid var(--border);
+    backdrop-filter:blur(12px);
+    position:sticky;top:0;z-index:100;
+  }
+  .logo{font-family:'Syne',sans-serif;font-weight:800;font-size:20px;letter-spacing:-0.5px;color:var(--text)}
+  .logo span{color:var(--accent)}
+  .nav{display:flex;gap:4px}
+  .nav-btn{
+    background:none;border:none;cursor:pointer;
+    padding:6px 14px;border-radius:6px;
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:500;
+    color:var(--text2);transition:all .2s;white-space:nowrap;
+  }
+  .nav-btn:hover,.nav-btn.active{background:var(--surface);color:var(--text)}
+  .nav-btn.active{border:1px solid var(--border2)}
+  .topbar-right{display:flex;align-items:center;gap:10px}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--accent2);box-shadow:0 0 8px var(--accent2);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .status-text{font-size:12px;color:var(--text2)}
+  .btn{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:7px 16px;border-radius:8px;
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:500;
+    cursor:pointer;border:none;transition:all .2s;white-space:nowrap;
+  }
+  .btn-primary{background:var(--accent);color:#000}
+  .btn-primary:hover{background:#22DAFF;transform:translateY(-1px);box-shadow:var(--glow)}
+  .btn-ghost{background:transparent;color:var(--text2);border:1px solid var(--border2)}
+  .btn-ghost:hover{background:var(--surface);color:var(--text)}
+  .btn-danger{background:rgba(255,75,75,0.15);color:var(--danger);border:1px solid rgba(255,75,75,0.3)}
+  .btn-danger:hover{background:rgba(255,75,75,0.25)}
+  .btn-success{background:rgba(0,255,136,0.12);color:var(--accent2);border:1px solid rgba(0,255,136,0.25)}
+  .btn-success:hover{background:rgba(0,255,136,0.2)}
+
+  /* ─── MAIN ─── */
+  .main{flex:1;display:grid;grid-template-columns:260px 1fr 300px;grid-template-rows:1fr;height:calc(100vh - 56px);overflow:hidden}
+  
+  /* ─── SIDEBAR ─── */
+  .sidebar{
+    border-right:1px solid var(--border);
+    background:var(--bg2);
+    overflow-y:auto;
+    display:flex;flex-direction:column;
+  }
+  .sidebar-section{padding:16px;border-bottom:1px solid var(--border)}
+  .sidebar-title{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:10px}
+  .node-card{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 12px;border-radius:8px;border:1px solid var(--border);
+    background:var(--surface);cursor:grab;
+    margin-bottom:6px;transition:all .2s;font-size:13px;
+  }
+  .node-card:hover{border-color:var(--accent);box-shadow:var(--glow);transform:translateX(2px)}
+  .node-card:active{cursor:grabbing}
+  .node-icon{
+    width:32px;height:32px;border-radius:6px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px;flex-shrink:0;
+  }
+  .node-info{flex:1;min-width:0}
+  .node-name{font-weight:500;color:var(--text);font-size:13px}
+  .node-desc{font-size:11px;color:var(--text3);margin-top:1px}
+  .drag-badge{
+    font-size:10px;padding:2px 6px;border-radius:4px;
+    background:rgba(0,212,255,0.1);color:var(--accent);border:1px solid rgba(0,212,255,0.2);
+    font-family:'DM Mono',monospace;
+  }
+
+  /* ─── CANVAS ─── */
+  .canvas-area{
+    position:relative;overflow:hidden;background:var(--bg);
+    display:flex;flex-direction:column;
+  }
+  .canvas-toolbar{
+    display:flex;align-items:center;gap:8px;
+    padding:10px 16px;border-bottom:1px solid var(--border);
+    background:var(--bg2);
+    flex-wrap:wrap;
+  }
+  .canvas-toolbar .sep{width:1px;height:24px;background:var(--border);margin:0 4px}
+  .tool-btn{
+    display:flex;align-items:center;justify-content:center;gap:5px;
+    padding:5px 10px;border-radius:6px;border:1px solid var(--border);
+    background:var(--surface);cursor:pointer;color:var(--text2);
+    font-size:12px;transition:all .2s;white-space:nowrap;
+  }
+  .tool-btn:hover{border-color:var(--border2);color:var(--text);background:var(--surface2)}
+  .tool-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,0.08)}
+  .tool-icon{font-size:14px}
+  #workflow-canvas{
+    flex:1;position:relative;overflow:auto;cursor:default;
+  }
+  #canvas-inner{
+    position:relative;width:2000px;height:1400px;
+  }
+  /* Nodes on canvas */
+  .wf-node{
+    position:absolute;
+    background:var(--surface);
+    border:1px solid var(--border2);
+    border-radius:10px;
+    min-width:160px;
+    cursor:move;
+    user-select:none;
+    transition:box-shadow .2s,border-color .2s;
+  }
+  .wf-node:hover{border-color:var(--border2);box-shadow:0 4px 20px rgba(0,0,0,0.4)}
+  .wf-node.selected{border-color:var(--accent);box-shadow:var(--glow)}
+  .wf-node.running{border-color:var(--accent2);box-shadow:var(--glow2)}
+  .wf-node.error{border-color:var(--danger);box-shadow:0 0 20px rgba(255,75,75,0.2)}
+  .node-header{
+    display:flex;align-items:center;gap:8px;
+    padding:10px 12px 8px;border-bottom:1px solid var(--border);
+  }
+  .node-h-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+  .node-h-title{font-weight:600;font-size:13px;color:var(--text)}
+  .node-h-badge{
+    margin-left:auto;font-size:10px;padding:2px 6px;border-radius:4px;
+    font-family:'DM Mono',monospace;
+  }
+  .badge-ai{background:rgba(168,85,247,0.15);color:var(--accent4);border:1px solid rgba(168,85,247,0.25)}
+  .badge-data{background:rgba(0,212,255,0.1);color:var(--accent);border:1px solid rgba(0,212,255,0.2)}
+  .badge-action{background:rgba(255,107,53,0.12);color:var(--accent3);border:1px solid rgba(255,107,53,0.25)}
+  .badge-trigger{background:rgba(0,255,136,0.1);color:var(--accent2);border:1px solid rgba(0,255,136,0.2)}
+  .node-body{padding:10px 12px}
+  .node-field{margin-bottom:8px}
+  .node-field label{display:block;font-size:11px;color:var(--text3);margin-bottom:3px;font-weight:500;letter-spacing:.3px}
+  .node-field input,.node-field select,.node-field textarea{
+    width:100%;padding:5px 8px;border-radius:6px;
+    border:1px solid var(--border);background:var(--bg3);
+    color:var(--text);font-size:12px;font-family:'Inter',sans-serif;
+    outline:none;transition:border-color .2s;resize:none;
+  }
+  .node-field input:focus,.node-field select:focus,.node-field textarea:focus{border-color:var(--accent)}
+  .node-field select option{background:var(--bg2)}
+  .node-ports{display:flex;justify-content:space-between;padding:0 12px 10px}
+  .port{
+    display:flex;align-items:center;gap:4px;
+    font-size:10px;color:var(--text3);cursor:pointer;
+  }
+  .port-dot{
+    width:10px;height:10px;border-radius:50%;
+    border:2px solid var(--text3);background:var(--bg);
+    transition:all .2s;
+  }
+  .port:hover .port-dot{border-color:var(--accent);background:var(--accent)}
+  .port-in{flex-direction:row}
+  .port-out{flex-direction:row-reverse}
+  .node-status{
+    height:3px;border-radius:0 0 10px 10px;
+    background:var(--border);overflow:hidden;position:relative;
+  }
+  .node-status-bar{height:100%;width:0%;transition:width 1s linear;border-radius:0 0 10px 10px}
+  .status-running .node-status-bar{background:var(--accent2);width:100%}
+  .status-done .node-status-bar{background:var(--accent2);width:100%}
+  .status-error .node-status-bar{background:var(--danger);width:100%}
+
+  /* Connections */
+  #connections-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1}
+  .connection-path{fill:none;stroke:var(--accent);stroke-width:2;stroke-dasharray:none;opacity:0.5}
+  .connection-path.animated{stroke-dasharray:8 4;animation:dashAnim 1s linear infinite}
+  @keyframes dashAnim{to{stroke-dashoffset:-12}}
+
+  /* Selection overlay */
+  #selection-rect{
+    position:absolute;border:1px dashed var(--accent);
+    background:rgba(0,212,255,0.04);pointer-events:none;display:none;z-index:50;
+  }
+
+  /* ─── MARKET PANEL ─── */
+  .market-panel{
+    border-left:1px solid var(--border);
+    background:var(--bg2);
+    overflow-y:auto;
+    display:flex;flex-direction:column;
+  }
+  .panel-tabs{
+    display:flex;border-bottom:1px solid var(--border);
+    position:sticky;top:0;background:var(--bg2);z-index:10;
+  }
+  .panel-tab{
+    flex:1;padding:12px 8px;text-align:center;
+    font-size:12px;font-weight:500;color:var(--text3);
+    cursor:pointer;border-bottom:2px solid transparent;
+    transition:all .2s;
+  }
+  .panel-tab:hover{color:var(--text2)}
+  .panel-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .panel-content{flex:1;padding:16px;display:none}
+  .panel-content.active{display:block}
+  .market-ticker{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 12px;border-radius:8px;border:1px solid var(--border);
+    background:var(--surface);margin-bottom:8px;cursor:pointer;transition:all .2s;
+  }
+  .market-ticker:hover{border-color:var(--border2);background:var(--surface2)}
+  .ticker-sym{font-family:'DM Mono',monospace;font-weight:500;font-size:14px;color:var(--text)}
+  .ticker-name{font-size:11px;color:var(--text3)}
+  .ticker-price{text-align:right}
+  .ticker-val{font-family:'DM Mono',monospace;font-size:14px;font-weight:500}
+  .ticker-chg{font-size:11px;font-family:'DM Mono',monospace}
+  .up{color:var(--accent2)}
+  .dn{color:var(--danger)}
+  .chart-container-sm{height:80px;margin:10px 0;position:relative}
+  .chart-container-lg{height:200px;margin:12px 0;position:relative}
+  .section-label{font-size:11px;font-weight:600;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin:16px 0 10px}
+  .metric-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+  .metric-box{
+    padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);
+  }
+  .metric-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+  .metric-val{font-family:'DM Mono',monospace;font-size:16px;font-weight:500;color:var(--text)}
+  .metric-sub{font-size:10px;font-family:'DM Mono',monospace;margin-top:1px}
+
+  /* ─── REGION SELECT OVERLAY ─── */
+  #region-overlay{
+    position:fixed;inset:0;z-index:9999;
+    cursor:crosshair;display:none;
+  }
+  #region-overlay-bg{
+    position:absolute;inset:0;background:rgba(0,5,15,0.7);
+  }
+  #region-box{
+    position:absolute;border:2px solid var(--accent);
+    background:rgba(0,212,255,0.06);
+    box-shadow:0 0 0 2px rgba(0,212,255,0.15);
+  }
+  #region-guide{
+    position:fixed;top:16px;left:50%;transform:translateX(-50%);
+    background:var(--bg);border:1px solid var(--border2);
+    padding:8px 18px;border-radius:20px;font-size:13px;color:var(--text2);
+    z-index:10001;pointer-events:none;
+  }
+  #region-toolbar{
+    position:fixed;background:var(--bg2);border:1px solid var(--border2);
+    border-radius:10px;padding:8px;display:none;gap:6px;z-index:10002;
+  }
+
+  /* ─── EXPORT MODAL ─── */
+  #export-modal{
+    position:fixed;inset:0;z-index:9998;
+    background:rgba(0,0,0,0.8);backdrop-filter:blur(4px);
+    display:none;align-items:center;justify-content:center;
+  }
+  .modal-box{
+    background:var(--bg2);border:1px solid var(--border2);
+    border-radius:16px;padding:28px;width:480px;max-width:95vw;
+  }
+  .modal-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;margin-bottom:6px}
+  .modal-sub{color:var(--text2);font-size:13px;margin-bottom:20px}
+  .export-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+  .export-opt{
+    padding:14px;border-radius:10px;border:1px solid var(--border);
+    background:var(--surface);cursor:pointer;transition:all .2s;text-align:center;
+  }
+  .export-opt:hover{border-color:var(--accent);box-shadow:var(--glow)}
+  .export-opt.selected{border-color:var(--accent);background:rgba(0,212,255,0.08)}
+  .export-icon{font-size:26px;margin-bottom:6px}
+  .export-label{font-weight:600;font-size:13px;color:var(--text)}
+  .export-desc{font-size:11px;color:var(--text3);margin-top:2px}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px}
+  .modal-close{position:absolute;top:16px;right:20px;background:none;border:none;color:var(--text2);cursor:pointer;font-size:22px}
+
+  /* ─── RUN PANEL ─── */
+  .run-log{
+    background:var(--bg);border:1px solid var(--border);border-radius:8px;
+    padding:12px;font-family:'DM Mono',monospace;font-size:11px;
+    color:var(--text2);height:160px;overflow-y:auto;
+    position:relative;
+  }
+  .log-line{margin-bottom:4px;display:flex;gap:8px}
+  .log-time{color:var(--text3);flex-shrink:0}
+  .log-msg{color:var(--text2)}
+  .log-msg.success{color:var(--accent2)}
+  .log-msg.error{color:var(--danger)}
+  .log-msg.info{color:var(--accent)}
+  .log-msg.warn{color:var(--warn)}
+
+  /* ─── SCROLLBARS ─── */
+  ::-webkit-scrollbar{width:4px;height:4px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+  ::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+  /* ─── MINI SPARKLINE ─── */
+  .sparkline{width:60px;height:28px}
+
+  /* ─── RESPONSIVE ─── */
+  @media(max-width:900px){
+    .main{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}
+    .sidebar,.market-panel{display:none}
+    .sidebar.show,.market-panel.show{display:flex}
+  }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes nodeIn{from{opacity:0;transform:scale(0.85)}to{opacity:1;transform:scale(1)}}
+  .wf-node.new{animation:nodeIn .25s ease-out}
+
+  /* ─── RUN HIGHLIGHT ─── */
+  @keyframes runGlow{
+    0%,100%{box-shadow:0 0 0 0 rgba(0,255,136,0.4)}
+    50%{box-shadow:0 0 0 6px rgba(0,255,136,0)}
+  }
+  .wf-node.running{animation:runGlow 1s ease-out infinite}
+
+  /* ─── HEATMAP ─── */
+  .heatmap-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:8px}
+  .hm-cell{
+    aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;
+    font-size:9px;font-family:'DM Mono',monospace;font-weight:500;cursor:pointer;transition:transform .15s;
+  }
+  .hm-cell:hover{transform:scale(1.1)}
+
+  /* ─── WATERMARK ─── */
+  .canvas-watermark{
+    position:absolute;bottom:24px;right:24px;
+    font-family:'Syne',sans-serif;font-size:11px;font-weight:700;
+    color:rgba(0,212,255,0.08);letter-spacing:3px;text-transform:uppercase;
+    pointer-events:none;user-select:none;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:20px">
+      <div class="logo">Flow<span>AI</span></div>
+      <nav class="nav">
+        <button class="nav-btn active" onclick="switchView('workflow')">Workflow</button>
+        <button class="nav-btn" onclick="switchView('market')">Market</button>
+        <button class="nav-btn" onclick="switchView('dashboard')">Dashboard</button>
+        <button class="nav-btn" onclick="switchView('automations')">Automations</button>
+      </nav>
+    </div>
+    <div class="topbar-right">
+      <div class="status-dot"></div>
+      <span class="status-text">Live — 3 flows active</span>
+      <button class="btn btn-ghost" onclick="openRegionSelect()">📸 Capture</button>
+      <button class="btn btn-ghost" onclick="openExport()">⬇ Export</button>
+      <button class="btn btn-primary" onclick="runWorkflow()">▶ Run Flow</button>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="main" id="main-layout">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-title">AI Nodes</div>
+        <div class="node-card" draggable="true" ondragstart="dragStart(event,'ai-llm')" data-type="ai-llm">
+          <div class="node-icon" style="background:rgba(168,85,247,0.15)">🧠</div>
+          <div class="node-info"><div class="node-name">LLM Prompt</div><div class="node-desc">Claude / GPT / Gemini</div></div>
+          <span class="drag-badge">AI</span>
+        </div>
+        <div class="node-card" draggable="true" ondragstart="dragStart(event,'ai-classify')" data-type="ai-classify">
+          <div class="node-icon" style="background:rgba(168,85,247,0.15)">🏷️</div>
+          <div class="node-info"><div class="node-name">Classifier</div><div class="node-desc">Text / Image / Signal</div></div>
+          <span class="drag-badge">AI</span>
+        </div>
+        <div class="node-card" draggable="true" ondragstart="dragStart(event,'ai-summarize')" data-type="ai-summarize">
+          <div class="node-icon" style="background:rgba(168,85,247,0.15)">📝</div>
+          <div class="node-info"><div class="node-name">Summarizer</div><div class="node-desc">Condense & extract</div></div>
+          <span class="drag-badge">AI</span>
+        </div>
+        <div class="node-card" draggable="true" ondragstart="dragStart(event,'ai-sentiment')" data-type="ai-sentiment">
+          <div class="node-icon" style="background:rgba(168,85,247,0.15)">💬</div>
+          <div class="node-info"><div class="node-name">Sentiment</div><div class="node-desc">Market mood analysis</div></div>
+          <span class="drag-badge">AI</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Data Sources</div>
+        <div class="node-card" draggable="true" ondragstart="dragStart(event,'data-stock')" data-type="data-stock">
+          <div class="node-icon" style="background:rgba(0,212,255,0.1)">📈</div>
+          <div class="node-info"><div class="node-name">Stock Feed</div><div class="node-desc">Live market data</div></div>
+          <span class="drag-badge" style="background:rgba(0,212,255,0.1);color:var(--accent)">DATA</span>
+        </div>
+        <div class="node-card" draggable="true" ondragstart="dragStart(event,'data-news')" data-type="data-news">
+          <div class="node-icon" style="background:rgba(0,212,255,0.1)">📰</div>
+          <div class="node-info"><div class="node-name">News Scraper</div><div class="node-desc">Financial headlines</div></div>
+          <span class="drag-badge" style="background:rgba(0,212,255,0.1);color:var(--accent)">DATA</span>
+        </div>
+        <div class="node-card" draggable="true" ondragstart="dragStart(event,'data-api')" data-type="data-api">
+          <div class="node-icon" style="background:rgba(0,212,255,0.1)">🔌</div>
+          <div class="node-info"><div class="node-name">REST API</div><div class="node-desc">HTTP / WebSocket</div></div>
+          <span class="drag-badge" style="background:rgba(0,212,255,0.1);color:var(--accent)">DATA</span>
+        </div>
+        <div class="node-card" draggable="true" ondragstart="dragStart(event,'data-csv')" data-type="data-csv">
+          <div class="node-icon" style="background:rgba(0,212,255,0.1)">🗂️</div>
+          <div class="node-info"><div class="node-name">CSV / JSON</div><div class="node-desc">File ingestion</div></div>
+          <span class="drag-badge" style="background:rgba(0,212,255,0.1);color:var(--accent)">DATA</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Triggers</div>
+        <div class="node-card" draggable="true" ondragstart="dragStart(event,'trigger-schedule')" data-type="trigger-schedule">
+          <div class="node-icon" style="background:rgba(0,255,136,0.1)">⏰</div>
+          <div class="node-info"><div class="node-name">Schedule</div><div class="node-desc">Cron / Interval</div></div>
+          <span class="drag-badge" style="background:rgba(0,255,136,0.1);color:var(--accent2)">TRIG</span>
+        </div>
+        <div class="node-card" draggable="true" ondragstart="dragStart(event,'trigger-price')" data-type="trigger-price">
+          <div class="node-icon" style="background:rgba(0,255,136,0.1)">🎯</div>
+          <div class="node-info"><div class="node-name">Price Alert</div><div class="node-desc">Threshold watcher</div></div>
+          <span class="drag-badge" style="background:rgba(0,255,136,0.1);color:var(--accent2)">TRIG</span>
+        </div>
+        <div class="node-card" draggable="true" ondragstart="dragStart(event,'trigger-webhook')" data-type="trigger-webhook">
+          <div class="node-icon" style="background:rgba(0,255,136,0.1)">🔗</div>
+          <div class="node-info"><div class="node-name">Webhook</div><div class="node-desc">HTTP endpoint</div></div>
+          <span class="drag-badge" style="background:rgba(0,255,136,0.1);color:var(--accent2)">TRIG</span>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-title">Actions</div>
+        <div class="node-card" draggable="true" ondragstart="dragStart(event,'action-email')" data-type="action-email">
+          <div class="node-icon" style="background:rgba(255,107,53,0.12)">📧</div>
+          <div class="node-info"><div class="node-name">Send Email</div><div class="node-desc">SMTP / Sendgrid</div></div>
+          <span class="drag-badge" style="background:rgba(255,107,53,0.12);color:var(--accent3)">ACT</span>
+        </div>
+        <div class="node-card" draggable="true" ondragstart="dragStart(event,'action-slack')" data-type="action-slack">
+          <div class="node-icon" style="background:rgba(255,107,53,0.12)">💬</div>
+          <div class="node-info"><div class="node-name">Slack Alert</div><div class="node-desc">Channel / DM</div></div>
+          <span class="drag-badge" style="background:rgba(255,107,53,0.12);color:var(--accent3)">ACT</span>
+        </div>
+        <div class="node-card" draggable="true" ondragstart="dragStart(event,'action-report')" data-type="action-report">
+          <div class="node-icon" style="background:rgba(255,107,53,0.12)">📊</div>
+          <div class="node-info"><div class="node-name">Report Gen</div><div class="node-desc">PDF / HTML export</div></div>
+          <span class="drag-badge" style="background:rgba(255,107,53,0.12);color:var(--accent3)">ACT</span>
+        </div>
+        <div class="node-card" draggable="true" ondragstart="dragStart(event,'action-trade')" data-type="action-trade">
+          <div class="node-icon" style="background:rgba(255,107,53,0.12)">💹</div>
+          <div class="node-info"><div class="node-name">Trade Signal</div><div class="node-desc">Broker API call</div></div>
+          <span class="drag-badge" style="background:rgba(255,107,53,0.12);color:var(--accent3)">ACT</span>
+        </div>
+      </div>
+
+      <!-- Run log -->
+      <div class="sidebar-section" style="flex:1">
+        <div class="sidebar-title">Execution Log</div>
+        <div class="run-log" id="run-log">
+          <div class="log-line"><span class="log-time">00:00</span><span class="log-msg info">FlowAI ready. Drag nodes to canvas.</span></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CANVAS -->
+    <section class="canvas-area">
+      <div class="canvas-toolbar">
+        <button class="tool-btn active" id="tool-select" onclick="setTool('select')"><span class="tool-icon">↖</span> Select</button>
+        <button class="tool-btn" id="tool-connect" onclick="setTool('connect')"><span class="tool-icon">⟶</span> Connect</button>
+        <button class="tool-btn" id="tool-region" onclick="openRegionSelect()"><span class="tool-icon">⬚</span> Region</button>
+        <div class="sep"></div>
+        <button class="tool-btn" onclick="zoomIn()">＋ Zoom In</button>
+        <button class="tool-btn" onclick="zoomOut()">－ Zoom Out</button>
+        <button class="tool-btn" onclick="resetZoom()">⊡ Fit</button>
+        <div class="sep"></div>
+        <button class="tool-btn" onclick="clearCanvas()">🗑 Clear</button>
+        <button class="tool-btn" onclick="saveFlow()">💾 Save</button>
+        <button class="tool-btn" onclick="openExport()">⬇ Export</button>
+        <div class="sep"></div>
+        <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace" id="node-count">0 nodes</span>
+        <span style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-left:8px" id="zoom-label">100%</span>
+      </div>
+
+      <div id="workflow-canvas"
+        ondragover="event.preventDefault()"
+        ondrop="dropNode(event)"
+        onmousedown="canvasMouseDown(event)"
+        onmousemove="canvasMouseMove(event)"
+        onmouseup="canvasMouseUp(event)">
+        <div id="canvas-inner">
+          <svg id="connections-svg"></svg>
+          <div id="selection-rect"></div>
+          <div class="canvas-watermark">FLOWAI · WORKFLOW ENGINE</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL -->
+    <aside class="market-panel" id="market-panel">
+      <div class="panel-tabs">
+        <div class="panel-tab active" onclick="switchPanel('stocks')">Stocks</div>
+        <div class="panel-tab" onclick="switchPanel('charts')">Charts</div>
+        <div class="panel-tab" onclick="switchPanel('heatmap')">Heatmap</div>
+      </div>
+
+      <!-- STOCKS TAB -->
+      <div class="panel-content active" id="panel-stocks">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">Watchlist</div>
+          <div style="font-size:11px;color:var(--accent2);font-family:'DM Mono',monospace" id="market-clock">──:──:──</div>
+        </div>
+        <div id="ticker-list"></div>
+        <div class="section-label">Market Overview</div>
+        <div class="metric-row">
+          <div class="metric-box"><div class="metric-label">S&P 500</div><div class="metric-val" id="sp500-val">5,302</div><div class="metric-sub up" id="sp500-chg">+0.82%</div></div>
+          <div class="metric-box"><div class="metric-label">NASDAQ</div><div class="metric-val" id="nasdaq-val">16,784</div><div class="metric-sub up" id="nasdaq-chg">+1.14%</div></div>
+          <div class="metric-box"><div class="metric-label">VIX</div><div class="metric-val" id="vix-val">14.2</div><div class="metric-sub dn" id="vix-chg">-0.3</div></div>
+          <div class="metric-box"><div class="metric-label">BTC/USD</div><div class="metric-val" id="btc-val">67,240</div><div class="metric-sub up" id="btc-chg">+2.1%</div></div>
+        </div>
+        <div class="chart-container-sm">
+          <canvas id="miniChart" role="img" aria-label="S&P 500 intraday sparkline">S&P 500 intraday chart</canvas>
+        </div>
+        <button class="btn btn-success" style="width:100%;margin-top:8px;justify-content:center" onclick="addStockNode()">+ Add Stock Feed Node</button>
+      </div>
+
+      <!-- CHARTS TAB -->
+      <div class="panel-content" id="panel-charts">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <select id="chart-symbol" style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12px;flex:1">
+            <option>AAPL</option><option>MSFT</option><option>NVDA</option><option>TSLA</option><option>AMZN</option><option>GOOGL</option>
+          </select>
+          <select id="chart-type-sel" style="background:var(--surface);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 8px;font-size:12px;">
+            <option>Line</option><option>Candlestick</option><option>Area</option>
+          </select>
+        </div>
+        <div class="chart-container-lg">
+          <canvas id="priceChart" role="img" aria-label="Stock price chart">Price history chart</canvas>
+        </div>
+        <div class="metric-row">
+          <div class="metric-box"><div class="metric-label">Open</div><div class="metric-val" id="stat-open">182.40</div></div>
+          <div class="metric-box"><div class="metric-label">High</div><div class="metric-val up" id="stat-high">187.23</div></div>
+          <div class="metric-box"><div class="metric-label">Low</div><div class="metric-val dn" id="stat-low">181.05</div></div>
+          <div class="metric-box"><div class="metric-label">Volume</div><div class="metric-val" id="stat-vol">58.2M</div></div>
+        </div>
+        <div class="section-label">Volume</div>
+        <div class="chart-container-sm">
+          <canvas id="volumeChart" role="img" aria-label="Volume chart">Volume chart</canvas>
+        </div>
+        <button class="btn btn-ghost" style="width:100%;margin-top:8px;justify-content:center" onclick="captureChart()">📸 Capture Chart Region</button>
+      </div>
+
+      <!-- HEATMAP TAB -->
+      <div class="panel-content" id="panel-heatmap">
+        <div class="section-label">S&P 500 Sector Heatmap</div>
+        <div id="heatmap-container"></div>
+        <div class="section-label" style="margin-top:16px">Top Movers</div>
+        <div id="movers-list"></div>
+      </div>
+    </aside>
+
+  </main>
+</div>
+
+<!-- ─── REGION SELECT OVERLAY ─── -->
+<div id="region-overlay" onmousedown="regionStart(event)" onmousemove="regionMove(event)" onmouseup="regionEnd(event)">
+  <div id="region-overlay-bg"></div>
+  <div id="region-box"></div>
+</div>
+<div id="region-guide">Click and drag to select a region to capture</div>
+<div id="region-toolbar" style="display:none">
+  <button class="btn btn-primary" style="font-size:12px;padding:5px 12px" onclick="captureRegion()">📸 Capture PNG</button>
+  <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick="captureRegionJSON()">{ } Export JSON</button>
+  <button class="btn btn-ghost" style="font-size:12px;padding:5px 12px" onclick="captureRegionSVG()">⊛ Export SVG</button>
+  <button class="btn btn-danger" style="font-size:12px;padding:5px 12px" onclick="cancelRegion()">✕ Cancel</button>
+</div>
+
+<!-- ─── EXPORT MODAL ─── -->
+<div id="export-modal">
+  <div class="modal-box" style="position:relative">
+    <button class="modal-close" onclick="closeExport()">×</button>
+    <div class="modal-title">Export Workflow</div>
+    <div class="modal-sub">Choose your export format and settings</div>
+    <div class="export-grid">
+      <div class="export-opt selected" onclick="selectExport(this,'json')">
+        <div class="export-icon">{ }</div>
+        <div class="export-label">JSON</div>
+        <div class="export-desc">Full workflow definition</div>
+      </div>
+      <div class="export-opt" onclick="selectExport(this,'png')">
+        <div class="export-icon">🖼</div>
+        <div class="export-label">PNG Image</div>
+        <div class="export-desc">Canvas screenshot</div>
+      </div>
+      <div class="export-opt" onclick="selectExport(this,'svg')">
+        <div class="export-icon">⊛</div>
+        <div class="export-label">SVG Vector</div>
+        <div class="export-desc">Scalable diagram</div>
+      </div>
+      <div class="export-opt" onclick="selectExport(this,'python')">
+        <div class="export-icon">🐍</div>
+        <div class="export-label">Python</div>
+        <div class="export-desc">Executable script</div>
+      </div>
+      <div class="export-opt" onclick="selectExport(this,'yaml')">
+        <div class="export-icon">📄</div>
+        <div class="export-label">YAML</div>
+        <div class="export-desc">Config as code</div>
+      </div>
+      <div class="export-opt" onclick="selectExport(this,'market')">
+        <div class="export-icon">📊</div>
+        <div class="export-label">Market Report</div>
+        <div class="export-desc">HTML dashboard</div>
+      </div>
+    </div>
+    <div style="margin-bottom:16px">
+      <label style="display:block;font-size:12px;color:var(--text2);margin-bottom:6px">Include options</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer"><input type="checkbox" checked style="accent-color:var(--accent)"> Node configs</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer"><input type="checkbox" checked style="accent-color:var(--accent)"> Connections</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer"><input type="checkbox" style="accent-color:var(--accent)"> Market data</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);cursor:pointer"><input type="checkbox" style="accent-color:var(--accent)"> Run history</label>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeExport()">Cancel</button>
+      <button class="btn btn-primary" onclick="doExport()">⬇ Download</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════
+let nodes = [];
+let connections = [];
+let selectedNodes = [];
+let currentTool = 'select';
+let draggedType = null;
+let nodeIdCounter = 1;
+let zoom = 1;
+let connectingFrom = null;
+let exportFormat = 'json';
+let isDraggingNode = false;
+let dragNodeId = null;
+let dragOffX = 0, dragOffY = 0;
+let isSelecting = false;
+let selStart = {x:0,y:0};
+let regionSelecting = false;
+let regionStart_ = {x:0,y:0};
+let regionRect = null;
+
+// ══════════════════════════════════════════════════════
+//  NODE DEFINITIONS
+// ══════════════════════════════════════════════════════
+const NODE_DEFS = {
+  'ai-llm':        {icon:'🧠', title:'LLM Prompt',    badge:'badge-ai',      color:'rgba(168,85,247,.15)', fields:['Model','Prompt','Temperature']},
+  'ai-classify':   {icon:'🏷️', title:'Classifier',    badge:'badge-ai',      color:'rgba(168,85,247,.15)', fields:['Model','Categories','Threshold']},
+  'ai-summarize':  {icon:'📝', title:'Summarizer',    badge:'badge-ai',      color:'rgba(168,85,247,.15)', fields:['Max tokens','Format']},
+  'ai-sentiment':  {icon:'💬', title:'Sentiment',     badge:'badge-ai',      color:'rgba(168,85,247,.15)', fields:['Source','Output field']},
+  'data-stock':    {icon:'📈', title:'Stock Feed',    badge:'badge-data',    color:'rgba(0,212,255,.1)',   fields:['Symbol','Interval','API Key']},
+  'data-news':     {icon:'📰', title:'News Scraper',  badge:'badge-data',    color:'rgba(0,212,255,.1)',   fields:['Source','Keywords','Limit']},
+  'data-api':      {icon:'🔌', title:'REST API',      badge:'badge-data',    color:'rgba(0,212,255,.1)',   fields:['URL','Method','Headers']},
+  'data-csv':      {icon:'🗂️', title:'CSV / JSON',   badge:'badge-data',    color:'rgba(0,212,255,.1)',   fields:['File path','Delimiter']},
+  'trigger-schedule': {icon:'⏰', title:'Schedule',    badge:'badge-trigger', color:'rgba(0,255,136,.1)',   fields:['Cron expression','Timezone']},
+  'trigger-price': {icon:'🎯', title:'Price Alert',  badge:'badge-trigger', color:'rgba(0,255,136,.1)',   fields:['Symbol','Condition','Value']},
+  'trigger-webhook':{icon:'🔗', title:'Webhook',      badge:'badge-trigger', color:'rgba(0,255,136,.1)',   fields:['Path','Auth']},
+  'action-email':  {icon:'📧', title:'Send Email',   badge:'badge-action',  color:'rgba(255,107,53,.12)', fields:['To','Subject','Template']},
+  'action-slack':  {icon:'💬', title:'Slack Alert',  badge:'badge-action',  color:'rgba(255,107,53,.12)', fields:['Channel','Message']},
+  'action-report': {icon:'📊', title:'Report Gen',   badge:'badge-action',  color:'rgba(255,107,53,.12)', fields:['Template','Output']},
+  'action-trade':  {icon:'💹', title:'Trade Signal', badge:'badge-action',  color:'rgba(255,107,53,.12)', fields:['Broker','Action','Size']},
+};
+
+// ══════════════════════════════════════════════════════
+//  CANVAS DRAG & DROP
+// ══════════════════════════════════════════════════════
+function dragStart(e, type) { draggedType = type; e.dataTransfer.effectAllowed='copy'; }
+
+function dropNode(e) {
+  e.preventDefault();
+  if (!draggedType) return;
+  const canvas = document.getElementById('workflow-canvas');
+  const inner = document.getElementById('canvas-inner');
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left + canvas.scrollLeft) / zoom;
+  const y = (e.clientY - rect.top + canvas.scrollTop) / zoom;
+  createNode(draggedType, x - 80, y - 40);
+  draggedType = null;
+}
+
+function createNode(type, x, y, config={}) {
+  const def = NODE_DEFS[type];
+  if (!def) return;
+  const id = 'n' + (nodeIdCounter++);
+  const node = {id, type, x:Math.max(0,x), y:Math.max(0,y), def, config, status:'idle'};
+  nodes.push(node);
+  renderNode(node);
+  updateNodeCount();
+  addLog(`Node "${def.title}" added`, 'info');
+  return node;
+}
+
+function renderNode(node) {
+  const def = node.def;
+  const el = document.createElement('div');
+  el.className = 'wf-node new';
+  el.id = node.id;
+  el.style.left = node.x + 'px';
+  el.style.top = node.y + 'px';
+  el.innerHTML = `
+    <div class="node-header">
+      <div class="node-h-icon" style="background:${def.color}">${def.icon}</div>
+      <span class="node-h-title">${def.title}</span>
+      <span class="node-h-badge ${def.badge}">${def.badge.replace('badge-','').toUpperCase()}</span>
+    </div>
+    <div class="node-body">
+      ${def.fields.map(f=>`<div class="node-field"><label>${f}</label><input type="text" placeholder="${f}..." value="${node.config[f]||''}"></div>`).join('')}
+    </div>
+    <div class="node-ports">
+      <div class="port port-in"><div class="port-dot"></div>IN</div>
+      <div class="port port-out">OUT<div class="port-dot"></div></div>
+    </div>
+    <div class="node-status"><div class="node-status-bar" id="sb-${node.id}"></div></div>
+  `;
+  el.addEventListener('mousedown', (e) => nodeMouseDown(e, node.id));
+  el.querySelector('.port-out').addEventListener('click', (e)=>{e.stopPropagation();startConnect(node.id)});
+  el.querySelector('.port-in').addEventListener('click', (e)=>{e.stopPropagation();endConnect(node.id)});
+  document.getElementById('canvas-inner').appendChild(el);
+  setTimeout(()=>el.classList.remove('new'),300);
+}
+
+// ══════════════════════════════════════════════════════
+//  NODE DRAGGING
+// ══════════════════════════════════════════════════════
+function nodeMouseDown(e, id) {
+  if (e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA') return;
+  e.stopPropagation();
+  if (currentTool==='connect') return;
+  isDraggingNode = true;
+  dragNodeId = id;
+  const node = nodes.find(n=>n.id===id);
+  const canvas = document.getElementById('workflow-canvas');
+  const rect = document.getElementById(id).getBoundingClientRect();
+  dragOffX = e.clientX - rect.left;
+  dragOffY = e.clientY - rect.top;
+  selectNode(id, e.shiftKey);
+}
+
+function canvasMouseDown(e) {
+  if (e.target.id!=='workflow-canvas'&&e.target.id!=='canvas-inner') return;
+  if (currentTool==='select') {
+    isSelecting = true;
+    const canvas = document.getElementById('workflow-canvas');
+    const inner = document.getElementById('canvas-inner');
+    const cRect = canvas.getBoundingClientRect();
+    selStart = {x: e.clientX - cRect.left + canvas.scrollLeft, y: e.clientY - cRect.top + canvas.scrollTop};
+    const sr = document.getElementById('selection-rect');
+    sr.style.display='block';
+    sr.style.left=selStart.x+'px'; sr.style.top=selStart.y+'px';
+    sr.style.width='0px'; sr.style.height='0px';
+    deselectAll();
+  }
+}
+
+function canvasMouseMove(e) {
+  if (isDraggingNode && dragNodeId) {
+    const canvas = document.getElementById('workflow-canvas');
+    const cRect = canvas.getBoundingClientRect();
+    const node = nodes.find(n=>n.id===dragNodeId);
+    if (!node) return;
+    node.x = Math.max(0,(e.clientX - cRect.left + canvas.scrollLeft - dragOffX)/zoom);
+    node.y = Math.max(0,(e.clientY - cRect.top + canvas.scrollTop - dragOffY)/zoom);
+    const el = document.getElementById(dragNodeId);
+    if (el) { el.style.left=node.x+'px'; el.style.top=node.y+'px'; }
+    drawConnections();
+  }
+  if (isSelecting) {
+    const canvas = document.getElementById('workflow-canvas');
+    const cRect = canvas.getBoundingClientRect();
+    const cur = {x: e.clientX - cRect.left + canvas.scrollLeft, y: e.clientY - cRect.top + canvas.scrollTop};
+    const sr = document.getElementById('selection-rect');
+    const x=Math.min(selStart.x,cur.x), y=Math.min(selStart.y,cur.y);
+    const w=Math.abs(cur.x-selStart.x), h=Math.abs(cur.y-selStart.y);
+    sr.style.left=x+'px'; sr.style.top=y+'px'; sr.style.width=w+'px'; sr.style.height=h+'px';
+  }
+}
+
+function canvasMouseUp(e) {
+  if (isDraggingNode) { isDraggingNode=false; dragNodeId=null; }
+  if (isSelecting) {
+    isSelecting=false;
+    document.getElementById('selection-rect').style.display='none';
+  }
+}
+
+document.addEventListener('mouseup', ()=>{ isDraggingNode=false; dragNodeId=null; });
+
+// ══════════════════════════════════════════════════════
+//  SELECTION
+// ══════════════════════════════════════════════════════
+function selectNode(id, multi=false) {
+  if (!multi) deselectAll();
+  const el=document.getElementById(id);
+  if (el) el.classList.add('selected');
+  if (!selectedNodes.includes(id)) selectedNodes.push(id);
+}
+
+function deselectAll() {
+  selectedNodes.forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('selected');});
+  selectedNodes=[];
+}
+
+// ══════════════════════════════════════════════════════
+//  CONNECTIONS
+// ══════════════════════════════════════════════════════
+function startConnect(fromId) {
+  if (currentTool!=='connect') { setTool('connect'); }
+  connectingFrom = fromId;
+  addLog(`Connecting from ${nodes.find(n=>n.id===fromId)?.def.title}...`, 'info');
+}
+
+function endConnect(toId) {
+  if (!connectingFrom || connectingFrom===toId) { connectingFrom=null; return; }
+  // avoid duplicates
+  const exists = connections.find(c=>c.from===connectingFrom&&c.to===toId);
+  if (!exists) {
+    connections.push({from:connectingFrom, to:toId});
+    drawConnections();
+    addLog(`Connected ${nodes.find(n=>n.id===connectingFrom)?.def.title} → ${nodes.find(n=>n.id===toId)?.def.title}`, 'success');
+  }
+  connectingFrom=null;
+}
+
+function getNodeCenter(id) {
+  const el=document.getElementById(id);
+  if (!el) return {x:0,y:0};
+  return {x: parseFloat(el.style.left)+(el.offsetWidth/2), y: parseFloat(el.style.top)+(el.offsetHeight/2)};
+}
+
+function drawConnections() {
+  const svg=document.getElementById('connections-svg');
+  svg.innerHTML='';
+  connections.forEach(c=>{
+    const f=getNodeCenter(c.from);
+    const t=getNodeCenter(c.to);
+    const dx=(t.x-f.x)*0.5;
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('class','connection-path'+(c.animated?' animated':''));
+    path.setAttribute('d',`M${f.x},${f.y} C${f.x+dx},${f.y} ${t.x-dx},${t.y} ${t.x},${t.y}`);
+    // Arrow marker
+    const arrow=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    arrow.setAttribute('cx',t.x);arrow.setAttribute('cy',t.y);
+    arrow.setAttribute('r',4);arrow.setAttribute('fill','#00D4FF');arrow.setAttribute('opacity','0.7');
+    svg.appendChild(path);
+    svg.appendChild(arrow);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  TOOLS
+// ══════════════════════════════════════════════════════
+function setTool(tool) {
+  currentTool=tool;
+  document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('tool-'+tool);
+  if (btn) btn.classList.add('active');
+  const canvas=document.getElementById('workflow-canvas');
+  canvas.style.cursor=tool==='connect'?'crosshair':'default';
+  if (tool!=='connect') connectingFrom=null;
+}
+
+// ══════════════════════════════════════════════════════
+//  ZOOM
+// ══════════════════════════════════════════════════════
+function applyZoom() {
+  document.getElementById('canvas-inner').style.transform=`scale(${zoom})`;
+  document.getElementById('canvas-inner').style.transformOrigin='0 0';
+  document.getElementById('zoom-label').textContent=Math.round(zoom*100)+'%';
+}
+function zoomIn(){zoom=Math.min(2,zoom+0.1);applyZoom();}
+function zoomOut(){zoom=Math.max(0.3,zoom-0.1);applyZoom();}
+function resetZoom(){zoom=1;applyZoom();}
+
+// ══════════════════════════════════════════════════════
+//  WORKFLOW RUN
+// ══════════════════════════════════════════════════════
+async function runWorkflow() {
+  if (nodes.length===0){addLog('No nodes on canvas!','warn');return;}
+  addLog('Starting workflow execution...','info');
+  const order = topoSort();
+  for (let i=0;i<order.length;i++) {
+    const n=order[i];
+    setNodeStatus(n.id,'running');
+    addLog(`Running: ${n.def.title}`,'info');
+    await sleep(600+Math.random()*400);
+    const success=Math.random()>0.1;
+    setNodeStatus(n.id, success?'done':'error');
+    if (!success){addLog(`Error in ${n.def.title}: Simulated failure`,'error');break;}
+    else addLog(`✓ ${n.def.title} completed`,'success');
+  }
+  addLog('Workflow execution complete','success');
+  // animate connections
+  connections.forEach(c=>c.animated=true);
+  drawConnections();
+  setTimeout(()=>{connections.forEach(c=>c.animated=false);drawConnections();},3000);
+}
+
+function topoSort() {
+  // Simple: triggers first, then by connection order
+  const triggered=nodes.filter(n=>n.type.startsWith('trigger'));
+  const rest=nodes.filter(n=>!n.type.startsWith('trigger'));
+  return [...triggered,...rest];
+}
+
+function setNodeStatus(id,status) {
+  const el=document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('running','error','selected');
+  if (status==='running') el.classList.add('running');
+  if (status==='error') el.classList.add('error');
+  const sb=document.getElementById('sb-'+id);
+  if (sb){
+    sb.className='node-status-bar';
+    if(status==='running')sb.style.background='var(--accent2)';
+    if(status==='done')sb.style.background='var(--accent2)';
+    if(status==='error')sb.style.background='var(--danger)';
+    sb.style.width=status==='idle'?'0':'100%';
+  }
+}
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+// ══════════════════════════════════════════════════════
+//  CLEAR & SAVE
+// ══════════════════════════════════════════════════════
+function clearCanvas() {
+  nodes.forEach(n=>{const el=document.getElementById(n.id);if(el)el.remove();});
+  nodes=[];connections=[];selectedNodes=[];
+  document.getElementById('connections-svg').innerHTML='';
+  updateNodeCount();
+  addLog('Canvas cleared','warn');
+}
+
+function saveFlow() {
+  const data={nodes:nodes.map(n=>({id:n.id,type:n.type,x:n.x,y:n.y})),connections};
+  localStorage.setItem('flowai-workflow',JSON.stringify(data));
+  addLog('Workflow saved to local storage','success');
+}
+
+function loadFlow() {
+  const saved=localStorage.getItem('flowai-workflow');
+  if (!saved) return;
+  const data=JSON.parse(saved);
+  data.nodes.forEach(n=>createNode(n.type,n.x,n.y));
+  setTimeout(()=>{connections=data.connections||[];drawConnections();},100);
+}
+
+// ══════════════════════════════════════════════════════
+//  LOG
+// ══════════════════════════════════════════════════════
+function addLog(msg, type='') {
+  const log=document.getElementById('run-log');
+  const now=new Date();
+  const t=`${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  const div=document.createElement('div');
+  div.className='log-line';
+  div.innerHTML=`<span class="log-time">${t}</span><span class="log-msg ${type}">${msg}</span>`;
+  log.appendChild(div);
+  log.scrollTop=log.scrollHeight;
+}
+
+function updateNodeCount() {
+  document.getElementById('node-count').textContent=nodes.length+' node'+(nodes.length!==1?'s':'');
+}
+
+// ══════════════════════════════════════════════════════
+//  REGION SELECT
+// ══════════════════════════════════════════════════════
+function openRegionSelect() {
+  const overlay=document.getElementById('region-overlay');
+  const guide=document.getElementById('region-guide');
+  overlay.style.display='block';
+  guide.style.display='block';
+  document.getElementById('region-box').style.cssText='';
+  document.getElementById('region-toolbar').style.display='none';
+  regionSelecting=false;
+  regionRect=null;
+}
+
+function regionStart(e) {
+  if (e.target.id==='region-toolbar'||e.target.closest('#region-toolbar')) return;
+  regionSelecting=true;
+  regionStart_={x:e.clientX,y:e.clientY};
+  const box=document.getElementById('region-box');
+  box.style.left=e.clientX+'px'; box.style.top=e.clientY+'px';
+  box.style.width='0'; box.style.height='0'; box.style.display='block';
+}
+
+function regionMove(e) {
+  if (!regionSelecting) return;
+  const x=Math.min(e.clientX,regionStart_.x);
+  const y=Math.min(e.clientY,regionStart_.y);
+  const w=Math.abs(e.clientX-regionStart_.x);
+  const h=Math.abs(e.clientY-regionStart_.y);
+  const box=document.getElementById('region-box');
+  box.style.left=x+'px'; box.style.top=y+'px';
+  box.style.width=w+'px'; box.style.height=h+'px';
+  document.getElementById('region-guide').textContent=`${w}×${h}px`;
+}
+
+function regionEnd(e) {
+  if (!regionSelecting) return;
+  regionSelecting=false;
+  const box=document.getElementById('region-box');
+  const x=parseInt(box.style.left), y=parseInt(box.style.top);
+  const w=parseInt(box.style.width), h=parseInt(box.style.height);
+  if (w<20||h<20){cancelRegion();return;}
+  regionRect={x,y,w,h};
+  document.getElementById('region-guide').style.display='none';
+  const toolbar=document.getElementById('region-toolbar');
+  toolbar.style.display='flex';
+  toolbar.style.left=Math.min(x,window.innerWidth-320)+'px';
+  toolbar.style.top=(y+h+8)+'px';
+}
+
+function captureRegion() {
+  if (!regionRect) return;
+  // Create a canvas snapshot of the region
+  const canvas2=document.createElement('canvas');
+  canvas2.width=regionRect.w; canvas2.height=regionRect.h;
+  const ctx=canvas2.getContext('2d');
+  ctx.fillStyle='#050A0F';
+  ctx.fillRect(0,0,regionRect.w,regionRect.h);
+  ctx.font='14px monospace';
+  ctx.fillStyle='#00D4FF';
+  ctx.fillText(`FlowAI Region Capture — ${regionRect.w}×${regionRect.h}px`,12,30);
+  ctx.fillStyle='rgba(0,212,255,0.3)';
+  ctx.strokeStyle='#00D4FF';
+  ctx.lineWidth=2;
+  ctx.strokeRect(4,4,regionRect.w-8,regionRect.h-8);
+  // Download
+  const link=document.createElement('a');
+  link.download='flowai-region-capture.png';
+  link.href=canvas2.toDataURL();
+  link.click();
+  addLog(`Region captured: ${regionRect.w}×${regionRect.h}px PNG`, 'success');
+  cancelRegion();
+}
+
+function captureRegionJSON() {
+  const data={type:'region-capture',dimensions:regionRect,timestamp:new Date().toISOString(),nodes:nodes.map(n=>({id:n.id,type:n.type,x:n.x,y:n.y,title:n.def.title})),connections};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='flowai-capture.json';a.click();
+  addLog('Region exported as JSON','success');
+  cancelRegion();
+}
+
+function captureRegionSVG() {
+  const svgStr=`<svg xmlns="http://www.w3.org/2000/svg" width="${regionRect.w}" height="${regionRect.h}">
+  <rect width="100%" height="100%" fill="#050A0F"/>
+  <rect x="4" y="4" width="${regionRect.w-8}" height="${regionRect.h-8}" fill="none" stroke="#00D4FF" stroke-width="2" rx="8"/>
+  <text x="12" y="28" font-family="monospace" font-size="13" fill="#00D4FF">FlowAI Region — ${regionRect.w}×${regionRect.h}</text>
+  ${nodes.map(n=>`<rect x="${n.x%regionRect.w}" y="${n.y%regionRect.h}" width="120" height="60" rx="8" fill="#1A2535" stroke="#1E3048"/>
+  <text x="${(n.x%regionRect.w)+10}" y="${(n.y%regionRect.h)+30}" font-family="monospace" font-size="11" fill="#E8F4FF">${n.def.icon} ${n.def.title}</text>`).join('')}
+</svg>`;
+  const blob=new Blob([svgStr],{type:'image/svg+xml'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='flowai-capture.svg';a.click();
+  addLog('Region exported as SVG','success');
+  cancelRegion();
+}
+
+function cancelRegion() {
+  document.getElementById('region-overlay').style.display='none';
+  document.getElementById('region-guide').style.display='none';
+  document.getElementById('region-toolbar').style.display='none';
+  regionRect=null; regionSelecting=false;
+}
+
+// ══════════════════════════════════════════════════════
+//  EXPORT
+// ══════════════════════════════════════════════════════
+function openExport(){document.getElementById('export-modal').style.display='flex';}
+function closeExport(){document.getElementById('export-modal').style.display='none';}
+
+function selectExport(el, fmt) {
+  document.querySelectorAll('.export-opt').forEach(o=>o.classList.remove('selected'));
+  el.classList.add('selected');
+  exportFormat=fmt;
+}
+
+function doExport() {
+  const flowData={
+    meta:{name:'FlowAI Workflow',version:'1.0',exported:new Date().toISOString()},
+    nodes:nodes.map(n=>({id:n.id,type:n.type,x:Math.round(n.x),y:Math.round(n.y),title:n.def.title})),
+    connections
+  };
+  if (exportFormat==='json') {
+    downloadBlob(JSON.stringify(flowData,null,2),'application/json','workflow.json');
+  } else if (exportFormat==='yaml') {
+    let yaml=`# FlowAI Workflow Export\nmeta:\n  name: FlowAI Workflow\n  exported: ${new Date().toISOString()}\nnodes:\n`;
+    nodes.forEach(n=>{yaml+=`  - id: ${n.id}\n    type: ${n.type}\n    title: ${n.def.title}\n    x: ${Math.round(n.x)}\n    y: ${Math.round(n.y)}\n`;});
+    yaml+=`connections:\n`;
+    connections.forEach(c=>{yaml+=`  - from: ${c.from}\n    to: ${c.to}\n`;});
+    downloadBlob(yaml,'text/yaml','workflow.yaml');
+  } else if (exportFormat==='python') {
+    let py=`#!/usr/bin/env python3\n"""FlowAI Generated Workflow — ${new Date().toISOString()}"""\nimport asyncio\n\n`;
+    nodes.forEach(n=>{py+=`async def run_${n.id}():\n    """${n.def.title}"""\n    print("Running ${n.def.title}")\n    await asyncio.sleep(0.5)\n    return {"status": "success"}\n\n`;});
+    py+=`async def main():\n`;
+    nodes.forEach(n=>{py+=`    await run_${n.id}()\n`;});
+    py+=`\nif __name__ == "__main__":\n    asyncio.run(main())\n`;
+    downloadBlob(py,'text/x-python','workflow.py');
+  } else if (exportFormat==='market') {
+    const html=generateMarketReport();
+    downloadBlob(html,'text/html','market-report.html');
+  } else if (exportFormat==='svg') {
+    const svgContent=generateWorkflowSVG();
+    downloadBlob(svgContent,'image/svg+xml','workflow.svg');
+  } else if (exportFormat==='png') {
+    addLog('PNG export: use region capture for canvas screenshot','warn');
+    closeExport(); openRegionSelect(); return;
+  }
+  addLog(`Exported as ${exportFormat.toUpperCase()}`,'success');
+  closeExport();
+}
+
+function generateWorkflowSVG() {
+  let nodesStr=nodes.map(n=>`<g transform="translate(${n.x},${n.y})">
+    <rect width="160" height="80" rx="8" fill="#1A2535" stroke="#1E3048"/>
+    <text x="12" y="28" font-family="monospace" font-size="14" fill="#E8F4FF">${n.def.icon} ${n.def.title}</text>
+    <text x="12" y="50" font-family="monospace" font-size="10" fill="#4A7090">${n.type}</text>
+  </g>`).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1400"><rect width="100%" height="100%" fill="#050A0F"/>${nodesStr}</svg>`;
+}
+
+function generateMarketReport() {
+  return `<!DOCTYPE html><html><head><title>FlowAI Market Report</title>
+  <style>body{background:#050A0F;color:#E8F4FF;font-family:monospace;padding:24px}
+  h1{color:#00D4FF}table{width:100%;border-collapse:collapse}
+  td,th{padding:10px;border:1px solid #1E3048;text-align:left}
+  .up{color:#00FF88}.dn{color:#FF4B4B}</style></head>
+  <body><h1>FlowAI Market Dashboard Report</h1>
+  <p>Generated: ${new Date().toLocaleString()}</p>
+  <h2>Workflow Summary</h2>
+  <table><tr><th>Node</th><th>Type</th><th>Status</th></tr>
+  ${nodes.map(n=>`<tr><td>${n.def.icon} ${n.def.title}</td><td>${n.type}</td><td class="up">Ready</td></tr>`).join('')}
+  </table>
+  <h2>Market Snapshot</h2>
+  <table><tr><th>Symbol</th><th>Price</th><th>Change</th></tr>
+  ${tickers.map(t=>`<tr><td>${t.sym}</td><td>$${t.price.toFixed(2)}</td><td class="${t.chg>=0?'up':'dn'}">${t.chg>=0?'+':''}${t.chg.toFixed(2)}%</td></tr>`).join('')}
+  </table></body></html>`;
+}
+
+function downloadBlob(content, mime, filename) {
+  const blob=new Blob([content],{type:mime});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=filename; a.click();
+}
+
+// ══════════════════════════════════════════════════════
+//  PANEL SWITCHING
+// ══════════════════════════════════════════════════════
+function switchPanel(id) {
+  document.querySelectorAll('.panel-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel-content').forEach(c=>c.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('panel-'+id).classList.add('active');
+  if (id==='charts') setTimeout(initPriceChart,100);
+  if (id==='heatmap') setTimeout(renderHeatmap,100);
+}
+
+function switchView(v) {
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  addLog(`Switched to ${v} view`,'info');
+}
+
+// ══════════════════════════════════════════════════════
+//  MARKET DATA (Simulated)
+// ══════════════════════════════════════════════════════
+const tickers = [
+  {sym:'AAPL',name:'Apple Inc.',price:187.32,chg:1.24,history:[]},
+  {sym:'MSFT',name:'Microsoft',price:415.80,chg:0.87,history:[]},
+  {sym:'NVDA',name:'NVIDIA',price:924.60,chg:3.41,history:[]},
+  {sym:'TSLA',name:'Tesla',price:177.40,chg:-1.82,history:[]},
+  {sym:'AMZN',name:'Amazon',price:186.40,chg:0.52,history:[]},
+  {sym:'GOOGL',name:'Alphabet',price:175.80,chg:0.93,history:[]},
+  {sym:'META',name:'Meta',price:492.30,chg:1.67,history:[]},
+];
+
+// Generate history
+tickers.forEach(t=>{
+  let p=t.price*0.95;
+  for(let i=0;i<50;i++){p+=p*(Math.random()-0.48)*0.01;t.history.push(parseFloat(p.toFixed(2)));}
+});
+
+let spHistory=[];
+(()=>{let p=5200;for(let i=0;i<60;i++){p+=p*(Math.random()-0.49)*0.008;spHistory.push(parseFloat(p.toFixed(2)));}})();
+
+function renderTickers() {
+  const list=document.getElementById('ticker-list');
+  list.innerHTML='';
+  tickers.forEach(t=>{
+    const up=t.chg>=0;
+    const div=document.createElement('div');
+    div.className='market-ticker';
+    div.innerHTML=`
+      <div>
+        <div class="ticker-sym">${t.sym}</div>
+        <div class="ticker-name">${t.name}</div>
+      </div>
+      <canvas class="sparkline" id="spark-${t.sym}" role="img" aria-label="${t.sym} sparkline">${t.sym} trend</canvas>
+      <div class="ticker-price">
+        <div class="ticker-val ${up?'up':'dn'}">$${t.price.toFixed(2)}</div>
+        <div class="ticker-chg ${up?'up':'dn'}">${up?'+':''}${t.chg.toFixed(2)}%</div>
+      </div>`;
+    div.onclick=()=>addStockNodeWithSymbol(t.sym);
+    list.appendChild(div);
+    drawSparkline(t,'spark-'+t.sym);
+  });
+}
+
+function drawSparkline(ticker, canvasId) {
+  setTimeout(()=>{
+    const el=document.getElementById(canvasId);
+    if (!el) return;
+    const ctx=el.getContext('2d');
+    const w=el.offsetWidth||60, h=el.offsetHeight||28;
+    el.width=w; el.height=h;
+    const data=ticker.history.slice(-20);
+    const min=Math.min(...data), max=Math.max(...data);
+    const range=max-min||1;
+    ctx.strokeStyle=ticker.chg>=0?'#00FF88':'#FF4B4B';
+    ctx.lineWidth=1.5;
+    ctx.beginPath();
+    data.forEach((v,i)=>{
+      const x=(i/(data.length-1))*w;
+      const y=h-((v-min)/range)*(h-4)-2;
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    // fill
+    ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+    ctx.fillStyle=ticker.chg>=0?'rgba(0,255,136,0.1)':'rgba(255,75,75,0.1)';
+    ctx.fill();
+  },50);
+}
+
+let miniChartInstance=null;
+function initMiniChart() {
+  const ctx=document.getElementById('miniChart')?.getContext('2d');
+  if (!ctx) return;
+  if (miniChartInstance) miniChartInstance.destroy();
+  const labels=spHistory.map((_,i)=>i%10===0?`${i}m`:'');
+  miniChartInstance=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{data:spHistory,borderColor:'#00D4FF',borderWidth:1.5,pointRadius:0,fill:true,backgroundColor:'rgba(0,212,255,0.06)',tension:0.4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}},animation:false}
+  });
+}
+
+let priceChartInstance=null,volumeChartInstance=null;
+function initPriceChart() {
+  const sym=document.getElementById('chart-symbol').value;
+  const ticker=tickers.find(t=>t.sym===sym)||tickers[0];
+  // Price chart
+  const ctx2=document.getElementById('priceChart')?.getContext('2d');
+  if (!ctx2) return;
+  if (priceChartInstance) priceChartInstance.destroy();
+  const labels=ticker.history.map((_,i)=>i%10===0?`${i*5}m`:'');
+  priceChartInstance=new Chart(ctx2,{
+    type:'line',
+    data:{labels,datasets:[{label:sym,data:ticker.history,borderColor:ticker.chg>=0?'#00FF88':'#FF4B4B',borderWidth:2,pointRadius:0,fill:true,backgroundColor:ticker.chg>=0?'rgba(0,255,136,0.06)':'rgba(255,75,75,0.06)',tension:0.3}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#4A7090',font:{size:10}},grid:{color:'rgba(0,212,255,0.05)'}},y:{ticks:{color:'#4A7090',font:{size:10},callback:v=>'$'+v.toFixed(0)},grid:{color:'rgba(0,212,255,0.05)'}}},animation:{duration:400}}
+  });
+  // Update stats
+  const h=ticker.history;
+  document.getElementById('stat-open').textContent=(h[0]).toFixed(2);
+  document.getElementById('stat-high').textContent=Math.max(...h).toFixed(2);
+  document.getElementById('stat-low').textContent=Math.min(...h).toFixed(2);
+  document.getElementById('stat-vol').textContent=(Math.random()*80+20).toFixed(1)+'M';
+  // Volume chart
+  const ctx3=document.getElementById('volumeChart')?.getContext('2d');
+  if (!ctx3) return;
+  if (volumeChartInstance) volumeChartInstance.destroy();
+  const vol=ticker.history.map(()=>Math.floor(Math.random()*5000000+500000));
+  volumeChartInstance=new Chart(ctx3,{
+    type:'bar',
+    data:{labels:ticker.history.map((_,i)=>i%10===0?`${i*5}m`:''),datasets:[{data:vol,backgroundColor:ticker.history.map((v,i)=>i>0&&v>ticker.history[i-1]?'rgba(0,255,136,0.5)':'rgba(255,75,75,0.5)'),borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}},animation:false}
+  });
+}
+document.getElementById('chart-symbol')?.addEventListener('change',initPriceChart);
+
+function captureChart() {
+  addLog('Chart region capture started','info');
+  cancelRegion();
+  closeExport();
+  setTimeout(openRegionSelect,100);
+}
+
+// ══════════════════════════════════════════════════════
+//  HEATMAP
+// ══════════════════════════════════════════════════════
+const sectors=[
+  {name:'Tech',chg:2.1},{name:'Finance',chg:-0.4},{name:'Health',chg:0.8},
+  {name:'Energy',chg:-1.2},{name:'Consumer',chg:0.3},{name:'Indust',chg:0.6},
+  {name:'Materials',chg:-0.7},{name:'Utilities',chg:-0.2},{name:'Real Est',chg:-0.9},
+  {name:'Comm Svcs',chg:1.4},{name:'Staples',chg:0.1},{name:'Discretion',chg:1.8},
+  {name:'AAPL',chg:1.24},{name:'MSFT',chg:0.87},{name:'NVDA',chg:3.41},
+  {name:'TSLA',chg:-1.82},{name:'AMZN',chg:0.52},{name:'GOOGL',chg:0.93},
+  {name:'META',chg:1.67},{name:'AMD',chg:2.3},
+];
+
+function renderHeatmap() {
+  const container=document.getElementById('heatmap-container');
+  const grid=document.createElement('div');
+  grid.className='heatmap-grid';
+  sectors.forEach(s=>{
+    const chg=s.chg;
+    const abs=Math.abs(chg);
+    const intensity=Math.min(abs/4,1);
+    let bg,tc;
+    if (chg>0){bg=`rgba(0,255,136,${0.1+intensity*0.5})`;tc='#00FF88';}
+    else{bg=`rgba(255,75,75,${0.1+intensity*0.5})`;tc='#FF4B4B';}
+    const cell=document.createElement('div');
+    cell.className='hm-cell';
+    cell.style.cssText=`background:${bg};color:${tc};flex-direction:column;gap:1px`;
+    cell.innerHTML=`<div style="font-size:8px;color:rgba(255,255,255,0.7)">${s.name}</div><div>${chg>0?'+':''}${chg.toFixed(1)}%</div>`;
+    cell.title=`${s.name}: ${chg>0?'+':''}${chg.toFixed(2)}%`;
+    grid.appendChild(cell);
+  });
+  container.innerHTML='';
+  container.appendChild(grid);
+
+  // Movers
+  const movers=[...tickers].sort((a,b)=>Math.abs(b.chg)-Math.abs(a.chg)).slice(0,5);
+  const moversList=document.getElementById('movers-list');
+  moversList.innerHTML='';
+  movers.forEach(t=>{
+    const up=t.chg>=0;
+    const div=document.createElement('div');
+    div.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);margin-bottom:6px;';
+    div.innerHTML=`<span style="font-family:DM Mono,monospace;font-size:13px;font-weight:500">${t.sym}</span>
+      <span style="font-size:12px;color:var(--text3)">$${t.price.toFixed(2)}</span>
+      <span style="font-family:DM Mono,monospace;font-size:12px;color:${up?'var(--accent2)':'var(--danger)'}">${up?'+':''}${t.chg.toFixed(2)}%</span>`;
+    moversList.appendChild(div);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  LIVE UPDATES
+// ══════════════════════════════════════════════════════
+function updateMarketData() {
+  tickers.forEach(t=>{
+    const move=(Math.random()-0.49)*0.3;
+    t.price=parseFloat((t.price*(1+move/100)).toFixed(2));
+    t.chg=parseFloat((t.chg+move*0.1).toFixed(2));
+    t.history.push(t.price); t.history.shift();
+  });
+  const spMove=(Math.random()-0.49)*5;
+  spHistory.push(parseFloat((spHistory[spHistory.length-1]+spMove).toFixed(2)));
+  spHistory.shift();
+  // Update displays
+  renderTickers();
+  if (miniChartInstance) {
+    miniChartInstance.data.datasets[0].data=[...spHistory];
+    miniChartInstance.update('none');
+  }
+  // Update index boxes
+  const sp=spHistory[spHistory.length-1];
+  document.getElementById('sp500-val').textContent=sp.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+  const btcEl=document.getElementById('btc-val');
+  btcEl.textContent=(67240+Math.random()*500-250).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+}
+
+function updateClock() {
+  const now=new Date();
+  document.getElementById('market-clock').textContent=
+    `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+}
+
+// ══════════════════════════════════════════════════════
+//  ADD STOCK NODE HELPER
+// ══════════════════════════════════════════════════════
+function addStockNode() {addStockNodeWithSymbol('AAPL');}
+function addStockNodeWithSymbol(sym) {
+  const node=createNode('data-stock',80+Math.random()*200,80+Math.random()*200,{'Symbol':sym,'Interval':'1m'});
+  if (node) {
+    // Also add AI sentiment connected
+    setTimeout(()=>{
+      const sNode=createNode('ai-sentiment',320+Math.random()*100,node.y,{'Source':'Stock Feed','Output field':'sentiment'});
+      if (sNode){connections.push({from:node.id,to:sNode.id});drawConnections();}
+    },100);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════
+function init() {
+  renderTickers();
+  setTimeout(initMiniChart, 200);
+  // Load saved or create demo
+  const saved=localStorage.getItem('flowai-workflow');
+  if (saved) {
+    try{const d=JSON.parse(saved);if(d.nodes?.length>0){loadFlow();return;}}catch(e){}
+  }
+  // Default demo workflow
+  setTimeout(()=>{
+    const n1=createNode('trigger-schedule',60,80);
+    const n2=createNode('data-stock',280,60);
+    const n3=createNode('data-news',280,200);
+    const n4=createNode('ai-sentiment',520,80);
+    const n5=createNode('ai-llm',520,220);
+    const n6=createNode('action-report',760,80);
+    const n7=createNode('action-slack',760,220);
+    setTimeout(()=>{
+      connections=[
+        {from:n1.id,to:n2.id},{from:n1.id,to:n3.id},
+        {from:n2.id,to:n4.id},{from:n3.id,to:n5.id},
+        {from:n4.id,to:n6.id},{from:n5.id,to:n7.id}
+      ];
+      drawConnections();
+      addLog('Demo workflow loaded — 6 nodes','success');
+    },200);
+  },300);
+  // Set field defaults
+  setTimeout(()=>{
+    const inputs=document.querySelectorAll('.wf-node input');
+    const defaults=[['AAPL,MSFT,NVDA'],['1m'],['sk-ant-...'],['Reuters, Bloomberg'],['earnings, Fed, AI'],['10'],['0 9 * * 1-5'],['America/New_York'],['Claude Sonnet'],['Analyze sentiment of: {{stock_data}}'],['0.3']];
+    inputs.forEach((inp,i)=>{ if(defaults[i]) inp.value=defaults[i][0]; });
+  },500);
+
+  setInterval(updateMarketData, 3000);
+  setInterval(updateClock, 1000);
+  updateClock();
+}
+
+init();
+</script>
+</body>
+</html>
